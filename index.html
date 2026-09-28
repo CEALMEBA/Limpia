@@ -2,25 +2,28 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Control de Basura con Evidencia Fotográfica</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { 
             font-family: Arial, sans-serif; 
-            max-width: 650px; 
+            max-width: 700px; 
             margin: 20px auto; 
             padding: 15px;
             background: #f5f5f5;
+            overflow-x: hidden;
+            width: 100%;
         }
         h2 { text-align: center; color: #333; }
         .card {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             margin-bottom: 15px;
+            overflow: hidden;
         }
         label { display: block; margin-top: 10px; font-weight: bold; font-size: 14px; }
         input, select { 
@@ -66,20 +69,6 @@
             border-radius: 4px;
             font-size: 16px;
         }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px; 
-            font-size: 12px;
-            background: white;
-        }
-        th, td { 
-            border: 1px solid #ddd; 
-            padding: 6px; 
-            text-align: center;
-        }
-        th { background: #343a40; color: white; }
-        tr:nth-child(even) { background: #f9f9f9; }
         .fecha-hoy {
             background: #28a745;
             color: white;
@@ -90,6 +79,94 @@
             font-weight: bold;
             margin-bottom: 15px;
         }
+        
+        /* ============ TABLA (VISTA PC) ============ */
+        .tabla-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 12px;
+            background: white;
+            min-width: 600px;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 6px; 
+            text-align: center;
+            white-space: nowrap;
+        }
+        th { background: #343a40; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        
+        /* ============ VISTA TARJETAS (CELULAR) ============ */
+        .lista-movil { display: none; }
+        
+        .tarjeta {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .tarjeta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .tarjeta-placa {
+            font-weight: bold;
+            font-size: 16px;
+            color: #28a745;
+        }
+        .tarjeta-hora {
+            font-size: 12px;
+            color: #888;
+        }
+        .tarjeta-fila {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        .tarjeta-fila span:first-child {
+            color: #666;
+        }
+        .tarjeta-fila span:last-child {
+            font-weight: bold;
+        }
+        .tarjeta-ton {
+            background: #fff3cd;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+        .tarjeta-foto {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .tarjeta-foto img {
+            max-width: 100%;
+            max-height: 180px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        /* ============ FOTO PREVIEW EN FORMULARIO ============ */
         .foto-preview {
             margin-top: 8px;
             text-align: center;
@@ -118,15 +195,19 @@
             font-size: 13px;
             padding: 10px;
         }
+        
+        /* ============ THUMB (MINIATURA EN TABLA PC) ============ */
         .thumb {
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             object-fit: cover;
             border-radius: 4px;
             cursor: pointer;
             border: 1px solid #ccc;
         }
         .thumb:hover { transform: scale(1.1); }
+        
+        /* ============ MODAL (VER FOTO GRANDE) ============ */
         .modal {
             display: none;
             position: fixed;
@@ -143,6 +224,7 @@
             border-radius: 8px;
         }
         .modal.activo { display: flex; }
+        
         .footer {
             text-align: center;
             font-size: 12px;
@@ -156,6 +238,18 @@
             margin: 10px 0;
             font-size: 13px;
             border-radius: 4px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* ============ MEDIA QUERY: CELULAR ============ */
+        @media (max-width: 700px) {
+            .tabla-desktop { display: none; }
+            .lista-movil { display: block; }
+            body { padding: 10px; }
+            .card { padding: 12px; }
         }
     </style>
 </head>
@@ -240,21 +334,28 @@
 
     <div class="card">
         <h3 style="margin-top:0;">📋 Registros de hoy</h3>
-        <table id="tabla">
-            <thead>
-                <tr>
-                    <th>Hora</th>
-                    <th>Placa</th>
-                    <th>Chofer</th>
-                    <th>Entrada</th>
-                    <th>Salida</th>
-                    <th>Neto</th>
-                    <th>Ton</th>
-                    <th>Foto</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        
+        <!-- Vista de tabla para PC -->
+        <div class="tabla-desktop tabla-scroll">
+            <table id="tabla">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Placa</th>
+                        <th>Chofer</th>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                        <th>Neto</th>
+                        <th>Ton</th>
+                        <th>Foto</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Vista de tarjetas para celular -->
+        <div class="lista-movil" id="listaMovil"></div>
     </div>
 
     <div class="modal" id="modal" onclick="cerrarModal()">
@@ -269,7 +370,7 @@
     <script>
         // ============ CONFIGURACIÓN ============
         const PREFIJO = 'basura_';
-        let fotoActual = null; // base64 de la foto actual
+        let fotoActual = null;
         // ======================================
 
         function fechaHoy() {
@@ -327,12 +428,10 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            // Redimensionar la imagen para que no pese tanto
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Redimensionar a máximo 800px de ancho
                     const MAX = 800;
                     let w = img.width, h = img.height;
                     if (w > MAX) {
@@ -345,7 +444,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, w, h);
                     
-                    // Comprimir como JPEG calidad 0.7
                     fotoActual = canvas.toDataURL('image/jpeg', 0.7);
                     mostrarPreview(fotoActual);
                 };
@@ -353,7 +451,6 @@
             };
             reader.readAsDataURL(file);
             
-            // Limpiar el input para permitir subir la misma foto otra vez
             event.target.value = '';
         }
 
@@ -381,11 +478,12 @@
         // ============ RENDER ============
         function render() {
             const registros = cargarHoy();
+            
+            // ============ VISTA TABLA (PC) ============
             const tbody = document.querySelector('#tabla tbody');
             tbody.innerHTML = '';
             
-            [...registros].reverse().forEach((r, idx) => {
-                const idFoto = 'foto_' + (registros.length - 1 - idx);
+            [...registros].reverse().forEach((r) => {
                 const celdaFoto = r.foto 
                     ? `<img src="${r.foto}" class="thumb" onclick="verFoto('${r.foto}')">` 
                     : '<span style="color:#ccc;">-</span>';
@@ -402,6 +500,56 @@
                 </tr>`;
             });
             
+            // ============ VISTA TARJETAS (CELULAR) ============
+            const lista = document.getElementById('listaMovil');
+            lista.innerHTML = '';
+            
+            if (registros.length === 0) {
+                lista.innerHTML = '<p style="text-align:center;color:#888;">No hay registros hoy todavía</p>';
+            }
+            
+            [...registros].reverse().forEach((r) => {
+                const fotoHtml = r.foto 
+                    ? `<div class="tarjeta-foto">
+                         <img src="${r.foto}" onclick="verFoto('${r.foto}')">
+                       </div>` 
+                    : '';
+                
+                lista.innerHTML += `
+                    <div class="tarjeta">
+                        <div class="tarjeta-header">
+                            <span class="tarjeta-placa">🚛 ${r.placa}</span>
+                            <span class="tarjeta-hora">${r.hora}</span>
+                        </div>
+                        <div class="tarjeta-fila">
+                            <span>👤 Chofer:</span>
+                            <span>${r.chofer}</span>
+                        </div>
+                        <div class="tarjeta-fila">
+                            <span>📍 Ruta:</span>
+                            <span>${r.ruta || '-'}</span>
+                        </div>
+                        <div class="tarjeta-fila">
+                            <span>⚖️ Entrada:</span>
+                            <span>${r.entrada} kg</span>
+                        </div>
+                        <div class="tarjeta-fila">
+                            <span>⚖️ Salida:</span>
+                            <span>${r.salida} kg</span>
+                        </div>
+                        <div class="tarjeta-fila">
+                            <span>🎯 Destino:</span>
+                            <span>${r.destino}</span>
+                        </div>
+                        <div class="tarjeta-ton">
+                            Neto: ${r.neto} kg (${r.ton} ton)
+                        </div>
+                        ${fotoHtml}
+                    </div>
+                `;
+            });
+            
+            // ============ TOTALES ============
             document.getElementById('totalHoy').textContent = registros.length;
             const totalTon = registros.reduce((s, r) => s + parseFloat(r.ton || 0), 0);
             document.getElementById('tonHoy').textContent = totalTon.toFixed(3);
@@ -443,7 +591,7 @@
                 ton: ((entrada - salida) / 1000).toFixed(3),
                 destino: document.getElementById('destino').value,
                 observaciones: document.getElementById('observaciones').value.trim(),
-                foto: fotoActual // base64 de la imagen
+                foto: fotoActual
             };
 
             const registros = cargarHoy();
@@ -451,7 +599,6 @@
             
             if (!guardarHoy(registros)) return;
 
-            // Limpiar formulario
             ['placa','chofer','ruta','entrada','salida','observaciones']
                 .forEach(id => document.getElementById(id).value = '');
             borrarFoto();
@@ -459,115 +606,7 @@
             render();
         }
 
-        // ============ EXCEL ============
-        async function descargarExcelDia() {
-            const registros = cargarHoy();
-            
-            if (registros.length === 0) {
-                alert('No hay registros hoy todavía');
-                return;
-            }
-
-            const wb = XLSX.utils.book_new();
-            
-            // Hoja 1: Datos
-            const datos = registros.map(r => ({
-                'Fecha': r.fecha,
-                'Hora': r.hora,
-                'Placa': r.placa,
-                'Chofer': r.chofer,
-                'Ruta': r.ruta,
-                'Peso Entrada (kg)': r.entrada,
-                'Peso Salida (kg)': r.salida,
-                'Peso Neto (kg)': r.neto,
-                'Toneladas': r.ton,
-                'Destino': r.destino,
-                'Observaciones': r.observaciones,
-                'Tiene Foto': r.foto ? 'Sí' : 'No'
-            }));
-            const ws = XLSX.utils.json_to_sheet(datos);
-            ws['!cols'] = [
-                {wch:12}, {wch:10}, {wch:12}, {wch:20}, {wch:20},
-                {wch:15}, {wch:15}, {wch:15}, {wch:12}, {wch:22}, {wch:25}, {wch:10}
-            ];
-            XLSX.utils.book_append_sheet(wb, ws, 'Pesajes');
-            
-            // Hoja 2: Evidencias fotográficas
-            // Solo si hay al menos una foto
-            const conFoto = registros.filter(r => r.foto);
-            if (conFoto.length > 0) {
-                // Esperar a que se construya la hoja de fotos
-                const wbConFotos = await construirHojaFotos(registros);
-                // Copiar la hoja de fotos al wb principal
-                XLSX.utils.book_append_sheet(wb, wbConFotos.Sheets['Evidencias'], 'Evidencias');
-            }
-
-            const nombre = 'control_basura_' + fechaHoy() + '.xlsx';
-            XLSX.writeFile(wb, nombre);
-        }
-
-        // Construir hoja de evidencias con las imágenes incrustadas
-        function construirHojaFotos(registros) {
-            return new Promise((resolve) => {
-                // Crear un libro temporal con la hoja "Evidencias"
-                const wb = XLSX.utils.book_new();
-                
-                // Hoja con filas: Placa | Chofer | Peso | Foto
-                const datos = registros.map(r => ({
-                    'Hora': r.hora,
-                    'Placa': r.placa,
-                    'Chofer': r.chofer,
-                    'Peso Neto (kg)': r.neto,
-                    'Toneladas': r.ton,
-                    'Foto': '' // aquí irá la imagen
-                }));
-                const ws = XLSX.utils.json_to_sheet(datos);
-                ws['!cols'] = [
-                    {wch:10}, {wch:12}, {wch:20}, {wch:15}, {wch:12}, {wch:30}
-                ];
-                ws['!rows'] = registros.map(() => ({ hpt: 120 })); // alto para que quepa la foto
-                XLSX.utils.book_append_sheet(wb, ws, 'Evidencias');
-
-                // Convertir el libro a binario y luego insertar imágenes con JSZip
-                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                
-                // Usamos JSZip para inyectar las imágenes
-                // Cargamos JSZip dinámicamente si no está
-                if (typeof JSZip === 'undefined') {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-                    script.onload = () => inyectarImagenes(wbout, registros, resolve);
-                    document.head.appendChild(script);
-                } else {
-                    inyectarImagenes(wbout, registros, resolve);
-                }
-            });
-        }
-
-        async function inyectarImagenes(wbout, registros, resolve) {
-            const zip = await JSZip.loadAsync(wbout);
-            const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
-            
-            // Buscar todas las celdas de la columna F (Foto) fila 2 en adelante
-            // (A=1, B=2, C=3, D=4, E=5, F=6)
-            
-            // Crear carpeta de medios
-            if (!zip.folder('xl/media')) zip.folder('xl/media');
-            
-            let imagenes = [];
-            let sheetXmlNuevo = sheetXml;
-            
-            // Dibujos (drawings) e imágenes en formato DrawingML
-            // Enfoque simple: usamos openpyxl-style pero desde JS es complejo.
-            // Alternativa: incrustar la imagen como comentario o como celda con hipervínculo.
-            
-            // MEJOR ENFOQUE: usar ExcelJS que sí soporta imágenes
-            
-            resolve({ Sheets: { 'Evidencias': {} }, _necesitaExcelJS: true });
-        }
-
-        // Como XLSX.js no soporta insertar imágenes fácilmente,
-        // usamos ExcelJS (que sí lo hace) cuando hay fotos.
+        // ============ EXCEL CON EXCELJS ============
         async function cargarExcelJS() {
             if (typeof ExcelJS !== 'undefined') return;
             return new Promise((resolve) => {
@@ -578,7 +617,6 @@
             });
         }
 
-        // Descarga el Excel usando ExcelJS (soporta imágenes incrustadas)
         async function descargarExcelDia() {
             const registros = cargarHoy();
             
@@ -608,7 +646,6 @@
                 { header: 'Foto', key: 'foto', width: 18 }
             ];
             
-            // Estilo del encabezado
             ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
             ws.getRow(1).fill = {
                 type: 'pattern', pattern: 'solid',
@@ -616,7 +653,6 @@
             };
             ws.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
-            // Agregar filas
             registros.forEach(r => {
                 ws.addRow({
                     fecha: r.fecha, hora: r.hora, placa: r.placa,
@@ -654,7 +690,6 @@
                     foto: ''
                 });
 
-                // Insertar imagen si existe
                 if (r.foto) {
                     try {
                         const base64Data = r.foto.split(',')[1];
@@ -666,7 +701,6 @@
                             tl: { col: 5, row: fila - 1 },
                             ext: { width: 200, height: 130 }
                         });
-                        // Ajustar altura de la fila para que quepa la foto
                         wsFotos.getRow(fila).height = 105;
                     } catch (e) {
                         console.error('Error insertando imagen:', e);
@@ -675,7 +709,6 @@
                 fila++;
             }
 
-            // ============ DESCARGAR ============
             const buffer = await wb.xlsx.writeBuffer();
             const blob = new Blob([buffer], { 
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
@@ -688,7 +721,6 @@
             URL.revokeObjectURL(url);
         }
 
-        // Descargar TODOS los días
         async function descargarTodosLosDias() {
             const fechas = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -711,7 +743,6 @@
                 const registros = JSON.parse(localStorage.getItem(PREFIJO + fecha) || '[]');
                 if (registros.length === 0) continue;
 
-                // Hoja de datos (nombre = fecha)
                 const ws = wb.addWorksheet('Datos ' + fecha);
                 ws.columns = [
                     { header: 'Hora', key: 'hora', width: 10 },
@@ -739,7 +770,6 @@
                     });
                 });
 
-                // Hoja de fotos
                 const conFoto = registros.filter(r => r.foto);
                 if (conFoto.length > 0) {
                     const wsF = wb.addWorksheet('Fotos ' + fecha);
@@ -805,7 +835,6 @@
         mostrarFecha();
         render();
 
-        // Detectar cambio de día
         let fechaActual = fechaHoy();
         setInterval(() => {
             const nueva = fechaHoy();
