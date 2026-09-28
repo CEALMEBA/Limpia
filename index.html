@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Basura con Evidencia Fotográfica</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 650px; 
+            margin: 20px auto; 
+            padding: 15px;
+            background: #f5f5f5;
+        }
+        h2 { text-align: center; color: #333; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        label { display: block; margin-top: 10px; font-weight: bold; font-size: 14px; }
+        input, select { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 4px 0 8px 0; 
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        button { 
+            padding: 12px; 
+            border: none; 
+            color: white; 
+            cursor: pointer; 
+            border-radius: 4px;
+            font-size: 15px;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .verde { background: #28a745; }
+        .verde:hover { background: #218838; }
+        .azul { background: #007bff; }
+        .azul:hover { background: #0069d9; }
+        .gris { background: #6c757d; }
+        .rojo { background: #dc3545; }
+        .naranja { background: #fd7e14; }
+        
+        .info { 
+            background: #d1ecf1; 
+            padding: 12px; 
+            border-radius: 4px; 
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .info strong { font-size: 18px; color: #0c5460; }
+        .neto { 
+            background: #fff3cd; 
+            padding: 12px; 
+            font-weight: bold; 
+            margin: 10px 0; 
+            text-align: center;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+            font-size: 12px;
+            background: white;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 6px; 
+            text-align: center;
+        }
+        th { background: #343a40; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .fecha-hoy {
+            background: #28a745;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .foto-preview {
+            margin-top: 8px;
+            text-align: center;
+        }
+        .foto-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+            border: 2px solid #28a745;
+        }
+        .foto-preview .sin-foto {
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            color: #888;
+            font-size: 13px;
+        }
+        .botones-foto {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .botones-foto button {
+            margin-top: 0;
+            font-size: 13px;
+            padding: 10px;
+        }
+        .thumb {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+        .thumb:hover { transform: scale(1.1); }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal img {
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 8px;
+        }
+        .modal.activo { display: flex; }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            margin-top: 20px;
+        }
+        .aviso {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h2>🚛 Control de Basura con Evidencia</h2>
+
+    <div class="fecha-hoy" id="fechaHoy">📅 Cargando fecha...</div>
+
+    <div class="info">
+        📊 Registros de hoy: <strong id="totalHoy">0</strong><br>
+        ⚖️ Toneladas de hoy: <strong id="tonHoy">0</strong><br>
+        📸 Con foto: <strong id="conFoto">0</strong>
+    </div>
+
+    <div class="card">
+        <input type="text" id="placa" placeholder="Placa del camión (ej: ABC-123)">
+        <input type="text" id="chofer" placeholder="Nombre del chofer">
+        <input type="text" id="ruta" placeholder="Ruta o colonia">
+        
+        <label>Peso Entrada (kg):</label>
+        <input type="number" id="entrada" step="0.01" oninput="calc()" placeholder="0.00">
+        
+        <label>Peso Salida (kg):</label>
+        <input type="number" id="salida" step="0.01" oninput="calc()" placeholder="0.00">
+        
+        <div class="neto">
+            Neto: <span id="neto">0</span> kg 
+            (<span id="ton">0</span> toneladas)
+        </div>
+        
+        <select id="destino">
+            <option>Relleno Sanitario</option>
+            <option>Planta de Transferencia</option>
+            <option>Reciclaje</option>
+        </select>
+        
+        <input type="text" id="observaciones" placeholder="Observaciones (opcional)">
+        
+        <!-- ============ FOTO DE EVIDENCIA ============ -->
+        <label>📸 Foto de la báscula (evidencia):</label>
+        <div class="aviso">
+            Toma la foto donde se vea claramente el <strong>peso en la pantalla de la báscula</strong>.
+        </div>
+        
+        <div class="botones-foto">
+            <button type="button" class="naranja" onclick="document.getElementById('inputCamara').click()">
+                📷 Tomar foto
+            </button>
+            <button type="button" class="gris" onclick="document.getElementById('inputGaleria').click()">
+                🖼️ Subir archivo
+            </button>
+            <button type="button" class="rojo" onclick="borrarFoto()">
+                ❌ Quitar
+            </button>
+        </div>
+        
+        <input type="file" id="inputCamara" accept="image/*" capture="environment" 
+               style="display:none" onchange="procesarFoto(event)">
+        <input type="file" id="inputGaleria" accept="image/*" 
+               style="display:none" onchange="procesarFoto(event)">
+        
+        <div class="foto-preview" id="fotoPreview">
+            <div class="sin-foto">Sin foto todavía</div>
+        </div>
+        
+        <button class="verde" onclick="agregar()" style="margin-top:15px;">
+            ➕ Agregar Registro
+        </button>
+    </div>
+
+    <div class="card">
+        <button class="azul" onclick="descargarExcelDia()">
+            📥 Descargar Excel de HOY (con fotos)
+        </button>
+        <button class="gris" onclick="descargarTodosLosDias()">
+            📦 Descargar TODOS los días (con fotos)
+        </button>
+        <button class="rojo" onclick="borrarDia()" style="margin-top:15px;">
+            🗑️ Borrar registros de HOY
+        </button>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">📋 Registros de hoy</h3>
+        <table id="tabla">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Placa</th>
+                    <th>Chofer</th>
+                    <th>Entrada</th>
+                    <th>Salida</th>
+                    <th>Neto</th>
+                    <th>Ton</th>
+                    <th>Foto</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="modal" onclick="cerrarModal()">
+        <img id="modalImg" src="">
+    </div>
+
+    <div class="footer">
+        Los datos se guardan localmente en este navegador.<br>
+        Cada día se genera un Excel diferente con las fotos incrustadas.
+    </div>
+
+    <script>
+        // ============ CONFIGURACIÓN ============
+        const PREFIJO = 'basura_';
+        let fotoActual = null; // base64 de la foto actual
+        // ======================================
+
+        function fechaHoy() {
+            const d = new Date();
+            return d.getFullYear() + '-' + 
+                   String(d.getMonth()+1).padStart(2,'0') + '-' + 
+                   String(d.getDate()).padStart(2,'0');
+        }
+
+        function horaActual() {
+            const d = new Date();
+            return String(d.getHours()).padStart(2,'0') + ':' + 
+                   String(d.getMinutes()).padStart(2,'0') + ':' + 
+                   String(d.getSeconds()).padStart(2,'0');
+        }
+
+        function claveDelDia(fecha) {
+            return PREFIJO + (fecha || fechaHoy());
+        }
+
+        function cargarHoy() {
+            const datos = localStorage.getItem(claveDelDia());
+            return datos ? JSON.parse(datos) : [];
+        }
+
+        function guardarHoy(registros) {
+            try {
+                localStorage.setItem(claveDelDia(), JSON.stringify(registros));
+                return true;
+            } catch (e) {
+                alert('⚠️ El almacenamiento está lleno. Descarga y borra los registros de hoy para continuar.');
+                return false;
+            }
+        }
+
+        function mostrarFecha() {
+            const hoy = fechaHoy();
+            const [y, m, d] = hoy.split('-');
+            const fecha = new Date(y, m-1, d);
+            const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('fechaHoy').textContent = 
+                '📅 ' + fecha.toLocaleDateString('es-MX', opciones);
+        }
+
+        function calc() {
+            const e = parseFloat(document.getElementById('entrada').value) || 0;
+            const s = parseFloat(document.getElementById('salida').value) || 0;
+            const n = e - s;
+            document.getElementById('neto').textContent = n.toFixed(2);
+            document.getElementById('ton').textContent = (n/1000).toFixed(3);
+        }
+
+        // ============ FOTO ============
+        function procesarFoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Redimensionar la imagen para que no pese tanto
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Redimensionar a máximo 800px de ancho
+                    const MAX = 800;
+                    let w = img.width, h = img.height;
+                    if (w > MAX) {
+                        h = h * (MAX / w);
+                        w = MAX;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    // Comprimir como JPEG calidad 0.7
+                    fotoActual = canvas.toDataURL('image/jpeg', 0.7);
+                    mostrarPreview(fotoActual);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            // Limpiar el input para permitir subir la misma foto otra vez
+            event.target.value = '';
+        }
+
+        function mostrarPreview(base64) {
+            document.getElementById('fotoPreview').innerHTML = 
+                `<img src="${base64}" alt="Evidencia báscula">`;
+        }
+
+        function borrarFoto() {
+            fotoActual = null;
+            document.getElementById('fotoPreview').innerHTML = 
+                '<div class="sin-foto">Sin foto todavía</div>';
+        }
+
+        // ============ MODAL ============
+        function verFoto(base64) {
+            document.getElementById('modalImg').src = base64;
+            document.getElementById('modal').classList.add('activo');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal').classList.remove('activo');
+        }
+
+        // ============ RENDER ============
+        function render() {
+            const registros = cargarHoy();
+            const tbody = document.querySelector('#tabla tbody');
+            tbody.innerHTML = '';
+            
+            [...registros].reverse().forEach((r, idx) => {
+                const idFoto = 'foto_' + (registros.length - 1 - idx);
+                const celdaFoto = r.foto 
+                    ? `<img src="${r.foto}" class="thumb" onclick="verFoto('${r.foto}')">` 
+                    : '<span style="color:#ccc;">-</span>';
+                
+                tbody.innerHTML += `<tr>
+                    <td>${r.hora}</td>
+                    <td>${r.placa}</td>
+                    <td>${r.chofer}</td>
+                    <td>${r.entrada}</td>
+                    <td>${r.salida}</td>
+                    <td><strong>${r.neto}</strong></td>
+                    <td><strong>${r.ton}</strong></td>
+                    <td>${celdaFoto}</td>
+                </tr>`;
+            });
+            
+            document.getElementById('totalHoy').textContent = registros.length;
+            const totalTon = registros.reduce((s, r) => s + parseFloat(r.ton || 0), 0);
+            document.getElementById('tonHoy').textContent = totalTon.toFixed(3);
+            
+            const conFoto = registros.filter(r => r.foto).length;
+            document.getElementById('conFoto').textContent = conFoto + ' / ' + registros.length;
+        }
+
+        // ============ AGREGAR ============
+        function agregar() {
+            const placa = document.getElementById('placa').value.trim().toUpperCase();
+            const chofer = document.getElementById('chofer').value.trim();
+            const entrada = parseFloat(document.getElementById('entrada').value) || 0;
+            const salida = parseFloat(document.getElementById('salida').value) || 0;
+
+            if (!placa || !chofer) {
+                alert('Completa placa y chofer');
+                return;
+            }
+            if (entrada <= 0) {
+                alert('El peso de entrada debe ser mayor a 0');
+                return;
+            }
+            if (!fotoActual) {
+                if (!confirm('⚠️ No has tomado foto de la báscula como evidencia.\n\n¿Guardar de todas formas?')) {
+                    return;
+                }
+            }
+
+            const r = {
+                fecha: fechaHoy(),
+                hora: horaActual(),
+                placa: placa,
+                chofer: chofer,
+                ruta: document.getElementById('ruta').value.trim(),
+                entrada: entrada,
+                salida: salida,
+                neto: (entrada - salida).toFixed(2),
+                ton: ((entrada - salida) / 1000).toFixed(3),
+                destino: document.getElementById('destino').value,
+                observaciones: document.getElementById('observaciones').value.trim(),
+                foto: fotoActual // base64 de la imagen
+            };
+
+            const registros = cargarHoy();
+            registros.push(r);
+            
+            if (!guardarHoy(registros)) return;
+
+            // Limpiar formulario
+            ['placa','chofer','ruta','entrada','salida','observaciones']
+                .forEach(id => document.getElementById(id).value = '');
+            borrarFoto();
+            calc();
+            render();
+        }
+
+        // ============ EXCEL ============
+        async function descargarExcelDia() {
+            const registros = cargarHoy();
+            
+            if (registros.length === 0) {
+                alert('No hay registros hoy todavía');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            // Hoja 1: Datos
+            const datos = registros.map(r => ({
+                'Fecha': r.fecha,
+                'Hora': r.hora,
+                'Placa': r.placa,
+                'Chofer': r.chofer,
+                'Ruta': r.ruta,
+                'Peso Entrada (kg)': r.entrada,
+                'Peso Salida (kg)': r.salida,
+                'Peso Neto (kg)': r.neto,
+                'Toneladas': r.ton,
+                'Destino': r.destino,
+                'Observaciones': r.observaciones,
+                'Tiene Foto': r.foto ? 'Sí' : 'No'
+            }));
+            const ws = XLSX.utils.json_to_sheet(datos);
+            ws['!cols'] = [
+                {wch:12}, {wch:10}, {wch:12}, {wch:20}, {wch:20},
+                {wch:15}, {wch:15}, {wch:15}, {wch:12}, {wch:22}, {wch:25}, {wch:10}
+            ];
+            XLSX.utils.book_append_sheet(wb, ws, 'Pesajes');
+            
+            // Hoja 2: Evidencias fotográficas
+            // Solo si hay al menos una foto
+            const conFoto = registros.filter(r => r.foto);
+            if (conFoto.length > 0) {
+                // Esperar a que se construya la hoja de fotos
+                const wbConFotos = await construirHojaFotos(registros);
+                // Copiar la hoja de fotos al wb principal
+                XLSX.utils.book_append_sheet(wb, wbConFotos.Sheets['Evidencias'], 'Evidencias');
+            }
+
+            const nombre = 'control_basura_' + fechaHoy() + '.xlsx';
+            XLSX.writeFile(wb, nombre);
+        }
+
+        // Construir hoja de evidencias con las imágenes incrustadas
+        function construirHojaFotos(registros) {
+            return new Promise((resolve) => {
+                // Crear un libro temporal con la hoja "Evidencias"
+                const wb = XLSX.utils.book_new();
+                
+                // Hoja con filas: Placa | Chofer | Peso | Foto
+                const datos = registros.map(r => ({
+                    'Hora': r.hora,
+                    'Placa': r.placa,
+                    'Chofer': r.chofer,
+                    'Peso Neto (kg)': r.neto,
+                    'Toneladas': r.ton,
+                    'Foto': '' // aquí irá la imagen
+                }));
+                const ws = XLSX.utils.json_to_sheet(datos);
+                ws['!cols'] = [
+                    {wch:10}, {wch:12}, {wch:20}, {wch:15}, {wch:12}, {wch:30}
+                ];
+                ws['!rows'] = registros.map(() => ({ hpt: 120 })); // alto para que quepa la foto
+                XLSX.utils.book_append_sheet(wb, ws, 'Evidencias');
+
+                // Convertir el libro a binario y luego insertar imágenes con JSZip
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                
+                // Usamos JSZip para inyectar las imágenes
+                // Cargamos JSZip dinámicamente si no está
+                if (typeof JSZip === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                    script.onload = () => inyectarImagenes(wbout, registros, resolve);
+                    document.head.appendChild(script);
+                } else {
+                    inyectarImagenes(wbout, registros, resolve);
+                }
+            });
+        }
+
+        async function inyectarImagenes(wbout, registros, resolve) {
+            const zip = await JSZip.loadAsync(wbout);
+            const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+            
+            // Buscar todas las celdas de la columna F (Foto) fila 2 en adelante
+            // (A=1, B=2, C=3, D=4, E=5, F=6)
+            
+            // Crear carpeta de medios
+            if (!zip.folder('xl/media')) zip.folder('xl/media');
+            
+            let imagenes = [];
+            let sheetXmlNuevo = sheetXml;
+            
+            // Dibujos (drawings) e imágenes en formato DrawingML
+            // Enfoque simple: usamos openpyxl-style pero desde JS es complejo.
+            // Alternativa: incrustar la imagen como comentario o como celda con hipervínculo.
+            
+            // MEJOR ENFOQUE: usar ExcelJS que sí soporta imágenes
+            
+            resolve({ Sheets: { 'Evidencias': {} }, _necesitaExcelJS: true });
+        }
+
+        // Como XLSX.js no soporta insertar imágenes fácilmente,
+        // usamos ExcelJS (que sí lo hace) cuando hay fotos.
+        async function cargarExcelJS() {
+            if (typeof ExcelJS !== 'undefined') return;
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+                script.onload = resolve;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Descarga el Excel usando ExcelJS (soporta imágenes incrustadas)
+        async function descargarExcelDia() {
+            const registros = cargarHoy();
+            
+            if (registros.length === 0) {
+                alert('No hay registros hoy todavía');
+                return;
+            }
+
+            await cargarExcelJS();
+            
+            const wb = new ExcelJS.Workbook();
+            
+            // ============ HOJA 1: DATOS ============
+            const ws = wb.addWorksheet('Pesajes');
+            ws.columns = [
+                { header: 'Fecha', key: 'fecha', width: 12 },
+                { header: 'Hora', key: 'hora', width: 10 },
+                { header: 'Placa', key: 'placa', width: 12 },
+                { header: 'Chofer', key: 'chofer', width: 20 },
+                { header: 'Ruta', key: 'ruta', width: 20 },
+                { header: 'Peso Entrada (kg)', key: 'entrada', width: 15 },
+                { header: 'Peso Salida (kg)', key: 'salida', width: 15 },
+                { header: 'Peso Neto (kg)', key: 'neto', width: 15 },
+                { header: 'Toneladas', key: 'ton', width: 12 },
+                { header: 'Destino', key: 'destino', width: 22 },
+                { header: 'Observaciones', key: 'obs', width: 25 },
+                { header: 'Foto', key: 'foto', width: 18 }
+            ];
+            
+            // Estilo del encabezado
+            ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            ws.getRow(1).fill = {
+                type: 'pattern', pattern: 'solid',
+                fgColor: { argb: 'FF343A40' }
+            };
+            ws.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // Agregar filas
+            registros.forEach(r => {
+                ws.addRow({
+                    fecha: r.fecha, hora: r.hora, placa: r.placa,
+                    chofer: r.chofer, ruta: r.ruta,
+                    entrada: parseFloat(r.entrada), salida: parseFloat(r.salida),
+                    neto: parseFloat(r.neto), ton: parseFloat(r.ton),
+                    destino: r.destino, obs: r.observaciones,
+                    foto: r.foto ? 'Ver en hoja Evidencias' : 'Sin foto'
+                });
+            });
+
+            // ============ HOJA 2: EVIDENCIAS CON FOTOS ============
+            const wsFotos = wb.addWorksheet('Evidencias');
+            wsFotos.columns = [
+                { header: 'Hora', key: 'hora', width: 10 },
+                { header: 'Placa', key: 'placa', width: 12 },
+                { header: 'Chofer', key: 'chofer', width: 20 },
+                { header: 'Peso Neto (kg)', key: 'neto', width: 15 },
+                { header: 'Toneladas', key: 'ton', width: 12 },
+                { header: 'Foto de la Báscula', key: 'foto', width: 45 }
+            ];
+            
+            wsFotos.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            wsFotos.getRow(1).fill = {
+                type: 'pattern', pattern: 'solid',
+                fgColor: { argb: 'FFFD7E14' }
+            };
+            wsFotos.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+            let fila = 2;
+            for (const r of registros) {
+                wsFotos.addRow({
+                    hora: r.hora, placa: r.placa, chofer: r.chofer,
+                    neto: parseFloat(r.neto), ton: parseFloat(r.ton),
+                    foto: ''
+                });
+
+                // Insertar imagen si existe
+                if (r.foto) {
+                    try {
+                        const base64Data = r.foto.split(',')[1];
+                        const imageId = wb.addImage({
+                            base64: base64Data,
+                            extension: 'jpeg'
+                        });
+                        wsFotos.addImage(imageId, {
+                            tl: { col: 5, row: fila - 1 },
+                            ext: { width: 200, height: 130 }
+                        });
+                        // Ajustar altura de la fila para que quepa la foto
+                        wsFotos.getRow(fila).height = 105;
+                    } catch (e) {
+                        console.error('Error insertando imagen:', e);
+                    }
+                }
+                fila++;
+            }
+
+            // ============ DESCARGAR ============
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { 
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'control_basura_' + fechaHoy() + '.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Descargar TODOS los días
+        async function descargarTodosLosDias() {
+            const fechas = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith(PREFIJO)) {
+                    fechas.push(key.replace(PREFIJO, ''));
+                }
+            }
+
+            if (fechas.length === 0) {
+                alert('No hay registros guardados');
+                return;
+            }
+
+            fechas.sort();
+            await cargarExcelJS();
+            const wb = new ExcelJS.Workbook();
+
+            for (const fecha of fechas) {
+                const registros = JSON.parse(localStorage.getItem(PREFIJO + fecha) || '[]');
+                if (registros.length === 0) continue;
+
+                // Hoja de datos (nombre = fecha)
+                const ws = wb.addWorksheet('Datos ' + fecha);
+                ws.columns = [
+                    { header: 'Hora', key: 'hora', width: 10 },
+                    { header: 'Placa', key: 'placa', width: 12 },
+                    { header: 'Chofer', key: 'chofer', width: 20 },
+                    { header: 'Ruta', key: 'ruta', width: 20 },
+                    { header: 'Peso Entrada (kg)', key: 'entrada', width: 15 },
+                    { header: 'Peso Salida (kg)', key: 'salida', width: 15 },
+                    { header: 'Peso Neto (kg)', key: 'neto', width: 15 },
+                    { header: 'Toneladas', key: 'ton', width: 12 },
+                    { header: 'Destino', key: 'destino', width: 22 }
+                ];
+                ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                ws.getRow(1).fill = {
+                    type: 'pattern', pattern: 'solid',
+                    fgColor: { argb: 'FF343A40' }
+                };
+                
+                registros.forEach(r => {
+                    ws.addRow({
+                        hora: r.hora, placa: r.placa, chofer: r.chofer, ruta: r.ruta,
+                        entrada: parseFloat(r.entrada), salida: parseFloat(r.salida),
+                        neto: parseFloat(r.neto), ton: parseFloat(r.ton),
+                        destino: r.destino
+                    });
+                });
+
+                // Hoja de fotos
+                const conFoto = registros.filter(r => r.foto);
+                if (conFoto.length > 0) {
+                    const wsF = wb.addWorksheet('Fotos ' + fecha);
+                    wsF.columns = [
+                        { header: 'Hora', key: 'hora', width: 10 },
+                        { header: 'Placa', key: 'placa', width: 12 },
+                        { header: 'Peso Neto (kg)', key: 'neto', width: 15 },
+                        { header: 'Toneladas', key: 'ton', width: 12 },
+                        { header: 'Foto', key: 'foto', width: 45 }
+                    ];
+                    wsF.getRow(1).font = { bold: true };
+                    
+                    let f = 2;
+                    for (const r of registros) {
+                        wsF.addRow({
+                            hora: r.hora, placa: r.placa,
+                            neto: parseFloat(r.neto), ton: parseFloat(r.ton),
+                            foto: ''
+                        });
+                        if (r.foto) {
+                            try {
+                                const imgId = wb.addImage({
+                                    base64: r.foto.split(',')[1],
+                                    extension: 'jpeg'
+                                });
+                                wsF.addImage(imgId, {
+                                    tl: { col: 4, row: f - 1 },
+                                    ext: { width: 200, height: 130 }
+                                });
+                                wsF.getRow(f).height = 105;
+                            } catch (e) {}
+                        }
+                        f++;
+                    }
+                }
+            }
+
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { 
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'control_basura_TODOS.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function borrarDia() {
+            const registros = cargarHoy();
+            if (registros.length === 0) {
+                alert('No hay registros hoy');
+                return;
+            }
+            if (confirm(`¿Borrar los ${registros.length} registros de hoy?`)) {
+                localStorage.removeItem(claveDelDia());
+                render();
+            }
+        }
+
+        // ============ INICIO ============
+        mostrarFecha();
+        render();
+
+        // Detectar cambio de día
+        let fechaActual = fechaHoy();
+        setInterval(() => {
+            const nueva = fechaHoy();
+            if (nueva !== fechaActual) {
+                fechaActual = nueva;
+                mostrarFecha();
+                render();
+                alert('📅 Nuevo día detectado. Los registros ahora van al Excel de ' + nueva);
+            }
+        }, 60000);
+    </script>
+</body>
+</html>
